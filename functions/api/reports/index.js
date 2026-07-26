@@ -52,6 +52,13 @@ export async function onRequestPost({ request, env }) {
     return errorResponse("missing_fields", 400);
   }
 
+  // D1 rejects any single column value larger than ~2,000,000 bytes. Guard
+  // here with a safety margin so a giant photo fails with a clear, translated
+  // error instead of an opaque 500.
+  if (body.photoDataUrl && body.photoDataUrl.length > 1_800_000) {
+    return errorResponse("photo_too_large", 413);
+  }
+
   // Server-side enforcement: non-admins may only file reports for their own Team,
   // regardless of what the client sends.
   if (user.role !== "admin" && team !== user.team) {

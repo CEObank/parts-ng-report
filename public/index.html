@@ -526,6 +526,7 @@
       detailLabel: "รายละเอียด",
       detailPlaceholder: "อธิบายลักษณะปัญหา",
       photoLabel: "ถ่ายรูปชิ้นงาน",
+      photoTooLargeError: "รูปภาพมีขนาดใหญ่เกินไป กรุณาถ่ายใหม่อีกครั้ง",
       openCameraBtn: "เปิดกล้อง",
       takePhotoBtn: "ถ่ายรูป",
       retakeBtn: "ถ่ายใหม่",
@@ -632,6 +633,7 @@
       detailLabel: "Details",
       detailPlaceholder: "Describe the issue",
       photoLabel: "Take photo of part",
+      photoTooLargeError: "Photo is too large. Please retake it.",
       openCameraBtn: "Open Camera",
       takePhotoBtn: "Take Photo",
       retakeBtn: "Retake",
@@ -738,6 +740,7 @@
       detailLabel: "详细说明",
       detailPlaceholder: "描述问题详情",
       photoLabel: "拍摄零件照片",
+      photoTooLargeError: "照片文件过大，请重新拍摄。",
       openCameraBtn: "打开摄像头",
       takePhotoBtn: "拍照",
       retakeBtn: "重拍",
@@ -914,6 +917,7 @@
       cannot_delete_self: "cannotDeleteSelfError",
       invalid_json: "requestFailedError",
       request_failed: "requestFailedError",
+      photo_too_large: "photoTooLargeError",
     };
     return T(map[code] || "requestFailedError");
   }
@@ -1070,12 +1074,27 @@
   function stopCamera() {
     if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
   }
+
+  // Phone cameras (and some webcams) can produce native resolutions of
+  // several thousand pixels per side. Sent as an uncompressed JPEG data URL,
+  // that can exceed Cloudflare D1's per-value size limit and fail to save.
+  // Downscale to a sane max dimension before encoding so uploads stay small
+  // and fast on mobile data.
+  const PHOTO_MAX_DIM = 1600;
+  const PHOTO_QUALITY = 0.8;
+  function scaledSize(w, h, maxDim) {
+    if (w <= maxDim && h <= maxDim) return { w, h };
+    const ratio = w > h ? maxDim / w : maxDim / h;
+    return { w: Math.max(1, Math.round(w * ratio)), h: Math.max(1, Math.round(h * ratio)) };
+  }
+
   function takeShot() {
     if (!video.videoWidth) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    currentPhotoDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    const { w, h } = scaledSize(video.videoWidth, video.videoHeight, PHOTO_MAX_DIM);
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext("2d").drawImage(video, 0, 0, w, h);
+    currentPhotoDataUrl = canvas.toDataURL("image/jpeg", PHOTO_QUALITY);
     preview.src = currentPhotoDataUrl;
     preview.style.display = "block";
     video.style.display = "none";
@@ -1090,12 +1109,21 @@
     if (!f) return;
     const reader = new FileReader();
     reader.onload = () => {
-      currentPhotoDataUrl = reader.result;
-      preview.src = currentPhotoDataUrl;
-      preview.style.display = "block";
-      video.style.display = "none";
-      retakeBtn.style.display = "none";
-      stopCamera();
+      const img = new Image();
+      img.onload = () => {
+        const { w, h } = scaledSize(img.naturalWidth, img.naturalHeight, PHOTO_MAX_DIM);
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        currentPhotoDataUrl = c.toDataURL("image/jpeg", PHOTO_QUALITY);
+        preview.src = currentPhotoDataUrl;
+        preview.style.display = "block";
+        video.style.display = "none";
+        retakeBtn.style.display = "none";
+        stopCamera();
+      };
+      img.src = reader.result;
     };
     reader.readAsDataURL(f);
   });
