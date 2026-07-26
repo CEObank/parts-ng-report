@@ -1,4 +1,4 @@
-name = "parts-ng-report"
+name = "baojie-ng-report"
 main = "src/index.js"
 compatibility_date = "2025-01-01"
 
