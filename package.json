@@ -1,0 +1,13 @@
+{
+  "name": "parts-ng-report",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev .",
+    "deploy": "wrangler pages deploy .",
+    "db:migrate:local": "wrangler d1 execute parts_ng_report_db --local --file=schema.sql",
+    "db:migrate:remote": "wrangler d1 execute parts_ng_report_db --remote --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

@@ -1,0 +1,8 @@
+name = "parts-ng-report"
+pages_build_output_dir = "."
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "parts_ng_report_db"
+database_id = "1941a5d7-67c4-4782-a59e-eab78ee71c15"
